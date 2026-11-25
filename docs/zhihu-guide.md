@@ -24,15 +24,7 @@ tags:
 
 原因在于 Antigravity 启动后，底层其实是 **3 套各自为政的网络栈**：
 
-```mermaid
-flowchart LR
-    U["点击快捷方式<br/>launch-antigravity-no-tun.vbs"] --> E["1. Electron / Chromium 渲染层<br/>认 --proxy-server 参数"]
-    U --> N["2. Electron 主进程 (Node.js)<br/>认 NODE_USE_ENV_PROXY=1"]
-    N --> G["3. Go language_server 与 CLI 子进程<br/>认 HTTP(S)_PROXY / NO_PROXY 环境变量"]
-    E --> P["本地代理端口<br/>http://127.0.0.1:7897"]
-    N --> P
-    G --> P
-```
+![Antigravity 免 TUN 工作原理：一次启动打通 3 层网络栈](assets/architecture.png)
 
 1. **Electron / Chromium 层**（界面、登录弹窗）：会读系统代理或 `--proxy-server` 参数。
 2. **Electron 主进程内置 Node.js**：默认无视 Windows 系统代理，除非启动前环境变量里就带了 `NODE_USE_ENV_PROXY=1` 和 `HTTP(S)_PROXY`。
@@ -48,13 +40,7 @@ flowchart LR
 
 另一种路线（受社区项目 `antigravity-context-viewer` 的外部启动器启发）则直接走正门：在拉起 `Antigravity.exe` 的那一刻，给这个进程单独挂上代理环境变量和 Chromium 启动参数。
 
-| 对比项 | `version.dll` 劫持方案 | 外部 `.vbs` 启动器方案 |
-| :--- | :--- | :--- |
-| 底层做法 | 伪造系统 DLL + Winsock Hook + 子进程注入 | 仅限子进程的环境变量 + 官方命令行参数 |
-| 是否改动安装目录 | 需要把 2 个文件拷进安装目录 | 不碰安装目录，也不改 `app.asar` |
-| 客户端自动更新后 | 文件被覆盖，必须手动重新复制 | 快捷方式与脚本在目录外，直接沿用 |
-| 内网 / `NO_PROXY` 分流 | 只认私有网段配置，不读系统 `NO_PROXY` | 自动继承你本机的 `NO_PROXY` 直连规则 |
-| 杀软与兼容性风险 | 注入未签名 DLL，偶有误报或升级失效 | 纯官方参数，零侵入 |
+![两条 Windows 免 TUN 路线核心对比](assets/comparison.png)
 
 对我来说，切换过来最立竿见影的好处有两点：一是客户端隔三差五自动升级后不用再去翻文件夹拷 DLL；二是我本机配了内网和国内直连的 `NO_PROXY`，切到启动器方案后，MCP 和局域网服务终于不再被误塞进代理。
 
